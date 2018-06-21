@@ -12,7 +12,7 @@ import java.util.ArrayList;
 public class SQLiteHelper extends SQLiteOpenHelper{
 
     private static final String TAG = "SQLiteHelper";
-    private static final int DB_VERSION = 3;
+    private static final int DB_VERSION = 2;
     private static final String DB_NAME = "test.db";
     static final String TABLE_NAME = "test_table_name";
     private static final String KEY_ID = "_id";
@@ -20,6 +20,13 @@ public class SQLiteHelper extends SQLiteOpenHelper{
     static final String KEY_ADDRESS = "address";
     static final String KEY_WORK = "work";
     static final String KEY_AGE = "age";
+
+    private static final String CREATE_TABLE = "create table if not exists " + TABLE_NAME
+            + "( " + KEY_ID + " integer primary key autoincrement,"
+            + KEY_NAME + " string,"
+            + KEY_ADDRESS + " string,"
+            + KEY_AGE + " integer,"
+            + KEY_WORK + " string);";
 
     public SQLiteHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -29,75 +36,34 @@ public class SQLiteHelper extends SQLiteOpenHelper{
     @Override
     public void onCreate(SQLiteDatabase db) {
         Log.e(TAG, "onCreate");
-        db.execSQL("drop table if exists " + TABLE_NAME);
-        String createTableCMD =
-                "create table if not exists " + TABLE_NAME
-                + "( " + KEY_ID + " integer primary key autoincrement,"
-                + KEY_NAME + " string,"
-                + KEY_ADDRESS + " string,"
-                + KEY_WORK + " integer);";
-        db.execSQL(createTableCMD);
+        db.execSQL(CREATE_TABLE);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        Log.e(TAG, "onUpgrade:" + oldVersion + "," + newVersion);
-        if (oldVersion > 3) {
-            return;
-        }
-        try {
-            db.beginTransaction();
-            db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + KEY_WORK + " string; ");
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            db.endTransaction();
-        }
-        Cursor cursor = null;
-        db.beginTransaction();
-        ArrayList<DataBean> list = new ArrayList<>();
+        Log.e(TAG, "onUpgrade===:" + oldVersion + "," + newVersion);
         try{
-            String sqlString = "select * from " + TABLE_NAME + " order by " + KEY_ID;
-            cursor = db.rawQuery(sqlString, null);
-            if (cursor != null && cursor.moveToFirst()) {
-                while (cursor.moveToNext()) {
-                    DataBean dataBean = new DataBean.Builder()
-                            .age(cursor.getInt(cursor.getColumnIndex(KEY_AGE)))
-                            .name(cursor.getString(cursor.getColumnIndex(KEY_NAME)))
-                            .address(cursor.getString(cursor.getColumnIndex(KEY_ADDRESS)))
-                            .build();
-                    list.add(dataBean);
-                }
+            db.beginTransaction();//需要批处理时则开启事务
+
+            switch (newVersion) {
+                case 1:
+                    db.execSQL(CREATE_TABLE);
+                    break;
+                case 2:
+                    String addColumn = "alter table " + TABLE_NAME + " add column " + KEY_AGE + " integer";
+                    db.execSQL(addColumn);
+                    break;
+                default:
             }
-        }catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-            db.endTransaction();
-        }
-        try {
-            db.beginTransaction();
-            Log.e(TAG, "onUpgrade: " + list.size());
-            for (DataBean dataBean : list) {
-                String updateSize = "UPDATE " + TABLE_NAME
-                        + " SET " + KEY_WORK + " = 'Android'"
-                        + " WHERE " +  KEY_ID + " = " + (list.indexOf(dataBean) + 1);
-                db.execSQL(updateSize);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+
+            db.setTransactionSuccessful();
+        }catch (Exception ex) {
+            ex.printStackTrace();
+            db.setTransactionSuccessful();
         } finally {
             db.endTransaction();
         }
 
-        if (oldVersion != newVersion) {
-            db.beginTransaction();
-            onCreate(db);
-            db.setTransactionSuccessful();
-            db.endTransaction();
-        }
     }
 
     @Override

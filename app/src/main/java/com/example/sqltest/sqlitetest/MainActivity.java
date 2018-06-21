@@ -40,6 +40,13 @@ public class MainActivity extends AppCompatActivity {
                         .build());
     }
 
+    @OnClick(R.id.button4)
+    public void query() {
+        Log.e("MainActivity", "query: ");
+        SQLiteManager.getInstance(getApplicationContext())
+                .queryFromDBTest();
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
